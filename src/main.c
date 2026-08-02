@@ -8,17 +8,28 @@ int print_usage(){
     return 0;
 }
 
+int  host_operand_in_args(int ac, char **av){
+    int i = 1;
+    while(i < ac){
+        if(av[i][0] != '-')
+            return 1;
+        i++;
+    }
+    return 0;
+}
+
 int check_args(int ac, char **av, t_args *args){
 
     int r_getopt = 0;
     args->verbose = false;
     args->target = NULL;
 
-    if (ac == 1){
+    if (!(host_operand_in_args(ac, av))){
         printf("ping: missing host operand\n");
         printf("Try 'ping -? for more information\n");
         return 64;
     }
+  
     while((r_getopt = getopt(ac, av, "v?")) != -1){
         switch (r_getopt){
         case 'v':
