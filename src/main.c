@@ -1,7 +1,4 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdio.h>
-#include <netinet/ip_icmp.h>
+#include "ft_ping.h"
 
 int main(int ac, char **av)
 {
