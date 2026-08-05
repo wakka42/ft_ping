@@ -26,7 +26,7 @@ Internet Control Message Protocol (ICMP) is a network layer protocol widely used
 
 With he -v options, we can see that we need to gather many informations:
 
-        ping -v -c 2  8.8.8.8 1.1.1.1
+        ping -v -c 2  8.8.8.8
 
         PING 8.8.8.8 (8.8.8.8): 56 data bytes, id 0x56b7 = 22199
         64 bytes from 8.8.8.8: icmp_seq=0 ttl=115 time=26,999 ms
@@ -34,11 +34,11 @@ With he -v options, we can see that we need to gather many informations:
         --- 8.8.8.8 ping statistics ---
         2 packets transmitted, 2 packets received, 0% packet loss
         round-trip min/avg/max/stddev = 18,156/22,578/26,999/4,422 ms
-        PING 1.1.1.1 (1.1.1.1): 56 data bytes, id 0x56b7 = 22199
-        64 bytes from 1.1.1.1: icmp_seq=0 ttl=56 time=17,328 ms
-        64 bytes from 1.1.1.1: icmp_seq=1 ttl=56 time=32,423 ms
-        --- 1.1.1.1 ping statistics ---
-        2 packets transmitted, 2 packets received, 0% packet loss
-        round-trip min/avg/max/stddev = 17,328/24,876/32,423/7,548 ms
 
 Furthermore, we'll have to handle signals such as crtl+c
+
+## Parsing
+
+The ping command can handle options and host operand, so we need to check the options passed to the programm and if an host operand is given.
+
+The next step is to check if the host operand is known, we'll use the libc function getaddrinfo to get the IPs or check if it is already an IP address or we can use inet_aton to check if this is a valid ip address even it is 1 (0.0.0.1) or 127.1 (127.0.0.1). In modern implementation, it is better to use inet_pton. We can then convert that 1 or 127.1 in dotted decimal IP with inet_ntoa for exemple
