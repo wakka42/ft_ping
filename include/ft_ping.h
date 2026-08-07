@@ -20,4 +20,15 @@ typedef struct s_args
     bool    verbose;
     char    *hostname;
     char    *ip;
+    struct  sockaddr addr;
 } t_args;
+
+typedef struct s_msg
+{
+    uint8_t  type;
+    uint8_t  code;
+    uint16_t checksum;
+    uint16_t identifier;
+    uint16_t sequence;
+    char     data[56];
+} t_msg;

@@ -36,8 +36,8 @@ int get_ip(t_args *args){
   }
 
   struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
+  args->addr = *res->ai_addr;
   addr = &(ipv4->sin_addr);
-
   inet_ntop(res->ai_family, addr, ipstr, sizeof(ipstr));
   printf("IP: %s\n", ipstr);
   args->ip = ipstr;
@@ -83,9 +83,28 @@ int check_args(int ac, char **av, t_args *args){
 
 static void handleSignal( int signal ) {
     if (signal == 2){
-        printf("Ctrl+c has been pressed, go terminate and print wht happens till now\n");
+        printf("\nCtrl+c has been pressed, go terminate and print wht happens till now\n");
         exit(1);
     }
+}
+
+uint16_t checksum(int count, void* addr){
+    
+    long sum = 0;
+    
+    while(count > 1){
+        sum += *(unsigned short *)addr;
+        addr += 2;
+        count -= 2;
+    }    
+    if(count > 0){
+        sum += * (unsigned char *) addr;
+    }
+    while(sum >> 16){
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+    long checksum = ~sum;
+    return checksum;
 }
 
 int main(int ac, char **av)
@@ -93,19 +112,32 @@ int main(int ac, char **av)
     (void)ac;
     (void)av;
     t_args args;
+    t_msg msg;
     // int r_parse;
 
     check_args(ac, av, &args);
     signal(SIGINT, handleSignal);
-
-    while (1){
-    }
-
     int psocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (psocket == -1){
         printf("An error occured when initializing a socket\n");
-        return 1;
+        exit(1);
     }
     printf("Socket ready\n");
+
+
+    msg.identifier = htons(getpid());
+    msg.sequence = htons(1);
+    msg.code = 0;
+    msg.type = 8;
+    msg.checksum = 0;
+    memcpy(msg.data, "Ping 42", 7);
+    msg.checksum = checksum(sizeof(msg), &msg);
+    if ((sendto(psocket, (void *)&msg, sizeof &msg, 0, &args.addr, 16)) < 1)
+        printf("C'est la loose");
+    int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
+    printf("%d bytes send\n", res);
+    // while (1){
+    // create_msg();
+    // }
     return (0);
 }

@@ -2,8 +2,8 @@
 
 The purpose of this project is to recreate the ping command from inetutils_2.0 in order to have a better understanding of it.
 
-The ping command uses ICMP so our programm need to communicate via this protocol.
-As seen in the man ip(7), if we want to use the ICMP, we have to use a raw socket and specify the protocol.
+The ping command uses ICMP so the programm need to communicate via this protocol.
+As seen in the man ip(7), if I want to use the ICMP, I have to use a raw socket and specify the protocol.
 
        tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
        udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -35,10 +35,36 @@ With he -v options, we can see that we need to gather many informations:
         2 packets transmitted, 2 packets received, 0% packet loss
         round-trip min/avg/max/stddev = 18,156/22,578/26,999/4,422 ms
 
-Furthermore, we'll have to handle signals such as crtl+c
+Furthermore, I'll have to handle signals such as crtl+c
 
 ## Parsing
 
-The ping command can handle options and host operand, so we need to check the options passed to the programm and if an host operand is given.
+The ping command can handle options and host operand, so I need to check the options passed to the programm and if an host operand is given.
 
-The next step is to check if the host operand is known, we'll use the libc function getaddrinfo to get the IPs or check if it is already an IP address or we can use inet_aton to check if this is a valid ip address even it is 1 (0.0.0.1) or 127.1 (127.0.0.1). In modern implementation, it is better to use inet_pton. We can then convert that 1 or 127.1 in dotted decimal IP with inet_ntoa for exemple
+The next step is to check if the host operand is known, I'll use the libc function getaddrinfo to get the IPs or check if it is already an IP address or I can use inet_aton to check if this is a valid ip address even it is 1 (0.0.0.1) or 127.1 (127.0.0.1). In modern implementation, it is better to use inet_pton. I can then convert that 1 or 127.1 in dotted decimal IP with inet_ntoa for exemple. I used getaddrinfo function to see if the hostname can be resolved or if the ip address provided was valid.
+
+## Create an ICMP echo message
+
+Now that the parsing is ok and that I have a socket ready, I'll have to create an ICMP mesage to send
+In the internet, I found a lot of documentation about the ICMP packet:
+
+http://www.tcpipguide.com/free/t_ICMPv4EchoRequestandEchoReplyMessages-2.htm
+
+In this packet there is many fields. I created a struct like this one:
+
+        typedef struct s_msg
+        {
+                uint8_t  type;          -> 8
+                uint8_t  code;          -> 0
+                uint16_t checksum;      -> initialized at 0
+                uint16_t identifier;    -> PID
+                uint16_t sequence;      -> Begins to 1
+                char     data[56];
+        } t_msg;
+
+In order to ensure that the packet is not compromise, there is a checksum field unitialize to 0, then I had to use the checksum algorithm referenced in the RFC 1071
+
+Documentation:
+
+- https://en.wikipedia.org/wiki/Internet_checksum#:~:text=To%20calculate%20the%20checksum%2C%20we,values%20are%20in%20hexadecimal%20notation.&text=This%20checksum%20value%20is%20shown,original%20IP%20packet%20header%20above.
+- https://stackoverflow.com/questions/20247551/icmp-echo-checksum
