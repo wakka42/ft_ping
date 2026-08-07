@@ -14,6 +14,7 @@
 #include <string.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <signal.h>
 typedef struct s_args
 {
     bool    verbose;

@@ -81,6 +81,13 @@ int check_args(int ac, char **av, t_args *args){
     return 1;
 }
 
+static void handleSignal( int signal ) {
+    if (signal == 2){
+        printf("Ctrl+c has been pressed, go terminate and print wht happens till now\n");
+        exit(1);
+    }
+}
+
 int main(int ac, char **av)
 {
     (void)ac;
@@ -89,6 +96,10 @@ int main(int ac, char **av)
     // int r_parse;
 
     check_args(ac, av, &args);
+    signal(SIGINT, handleSignal);
+
+    while (1){
+    }
 
     int psocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (psocket == -1){
