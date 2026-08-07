@@ -30,7 +30,9 @@ int get_ip(t_args *args){
   hints.ai_socktype = SOCK_RAW;
 
   if ((status = getaddrinfo(args->hostname, NULL, &hints, &res)) != 0) {
-    return -1;
+    // return -1;
+    fprintf(stderr, "ft_ping: unknown host\n");
+    exit(1);
   }
 
   struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
@@ -54,15 +56,10 @@ int check_args(int ac, char **av, t_args *args){
     if (!(host_operand_in_args(ac, av))){
         printf("ping: missing host operand\n");
         printf("Try 'ping -? for more information\n");
-        return 64;
+        exit(64);
     }
     args->hostname = av[host_operand_in_args(ac, av)];
-
-    if (get_ip(args) != 0) {
-        fprintf(stderr, "ft_ping: unknown host\n");
-        exit(1);
-    }
-
+    get_ip(args);
     while((r_getopt = getopt(ac, av, "v?")) != -1){
         switch (r_getopt){
         case 'v':
@@ -71,14 +68,14 @@ int check_args(int ac, char **av, t_args *args){
         case '?':
             if (optopt != 0){
                 fprintf(stderr, "Try 'ping -? for more information\n");
-                return 64;
+                exit(64);
             }
             print_usage();
-            return 0;
+            exit(0);
         default:
             fprintf(stderr, "ping: missing host operand\n");
             fprintf(stderr, "Try 'ping -? for more information\n");
-            return 64;
+            exit(64);
         }
     }
     return 1;
@@ -89,11 +86,9 @@ int main(int ac, char **av)
     (void)ac;
     (void)av;
     t_args args;
-    int r_parse;
+    // int r_parse;
 
-    r_parse = check_args(ac, av, &args);
-    if (r_parse != 1)
-        return r_parse;
+    check_args(ac, av, &args);
 
     int psocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (psocket == -1){
