@@ -68,3 +68,10 @@ Documentation:
 
 - https://en.wikipedia.org/wiki/Internet_checksum#:~:text=To%20calculate%20the%20checksum%2C%20we,values%20are%20in%20hexadecimal%20notation.&text=This%20checksum%20value%20is%20shown,original%20IP%20packet%20header%20above.
 - https://stackoverflow.com/questions/20247551/icmp-echo-checksum
+
+## Receiving the ICMP echo reply
+
+In order to do this, I need to store the packet in a buffer, then read it to get the information needed to check if this is an echo reply from the same identifier, that the checksum is ok though.
+When I got the echo reply, I have to separate the packet between the IP header and the ICMP packet that are encapsulated by it.
+Then, I can found the TTL that I need, and the type, code, checksum, identifier and sequence in the ICMP header.
+On thing is missing though, the time in ms for the echo request to be send and for us to receive the echo reply.
