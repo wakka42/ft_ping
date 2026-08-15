@@ -23,7 +23,6 @@ int get_ip(t_args *args){
   struct addrinfo hints, *res;
   void *addr;
   int status;
-  char ipstr[INET_ADDRSTRLEN];
 
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
@@ -38,9 +37,8 @@ int get_ip(t_args *args){
   struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
   args->addr = *res->ai_addr;
   addr = &(ipv4->sin_addr);
-  inet_ntop(res->ai_family, addr, ipstr, sizeof(ipstr));
-  printf("IP: %s\n", ipstr);
-  args->ip = ipstr;
+  inet_ntop(res->ai_family, addr, args->ip, sizeof(args->ip));
+  printf("IP: %s\n", args->ip);
 
   freeaddrinfo(res);
 
@@ -124,7 +122,6 @@ int main(int ac, char **av)
     }
     printf("Socket ready\n");
 
-
     msg.identifier = htons(getpid());
     msg.sequence = htons(1);
     msg.code = 0;
@@ -132,12 +129,19 @@ int main(int ac, char **av)
     msg.checksum = 0;
     memcpy(msg.data, "Ping 42", 7);
     msg.checksum = checksum(sizeof(msg), &msg);
-    if ((sendto(psocket, (void *)&msg, sizeof &msg, 0, &args.addr, 16)) < 1)
+    if ((sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16)) < 1)
         printf("C'est la loose");
-    int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
-    printf("%d bytes send\n", res);
-    // while (1){
-    // create_msg();
-    // }
+    while (1){
+        int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
+        printf("%d bytes send\n", res);
+        sleep(1);
+        unsigned char buf[4096];
+        struct sockaddr_in sender;
+        socklen_t addr_len = sizeof(sender);
+        int result = recvfrom(psocket, buf, sizeof(buf), 0, (struct sockaddr *)&sender, &addr_len);
+        struct iphdr *ip_header = (struct iphdr *)buf;
+        struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
+        printf("%d bytes from %s: icmp_seq=%u ttl=%u\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl);
+    }
     return (0);
 }

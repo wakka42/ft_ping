@@ -15,11 +15,13 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 typedef struct s_args
 {
     bool    verbose;
     char    *hostname;
-    char    *ip;
+    char    ip[INET_ADDRSTRLEN];
     struct  sockaddr addr;
 } t_args;
 
