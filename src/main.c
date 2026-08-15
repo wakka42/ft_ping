@@ -105,13 +105,24 @@ uint16_t checksum(int count, void* addr){
     return checksum;
 }
 
+void create_msg(t_msg *msg, pid_t id, uint16_t seq){
+        msg->identifier = htons(id);
+        msg->sequence = htons(seq);
+        msg->code = 0;
+        msg->type = 8;
+        msg->checksum = 0;
+        memcpy(msg->data, "Ping 42", 7);
+        msg->checksum = checksum(sizeof(*msg), msg);
+}
+
 int main(int ac, char **av)
 {
     (void)ac;
     (void)av;
     t_args args;
     t_msg msg;
-    // int r_parse;
+    uint16_t seq = 1;
+    pid_t pid = getpid();
 
     check_args(ac, av, &args);
     signal(SIGINT, handleSignal);
@@ -120,19 +131,12 @@ int main(int ac, char **av)
         printf("An error occured when initializing a socket\n");
         exit(1);
     }
-    printf("Socket ready\n");
-
-    msg.identifier = htons(getpid());
-    msg.sequence = htons(1);
-    msg.code = 0;
-    msg.type = 8;
-    msg.checksum = 0;
-    memcpy(msg.data, "Ping 42", 7);
-    msg.checksum = checksum(sizeof(msg), &msg);
-    if ((sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16)) < 1)
-        printf("C'est la loose");
     while (1){
+        create_msg(&msg, pid, seq);
         int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
+        if (res < 1)
+            printf("A proble occured");
+        seq = seq + 1;
         printf("%d bytes send\n", res);
         sleep(1);
         unsigned char buf[4096];
@@ -141,7 +145,9 @@ int main(int ac, char **av)
         int result = recvfrom(psocket, buf, sizeof(buf), 0, (struct sockaddr *)&sender, &addr_len);
         struct iphdr *ip_header = (struct iphdr *)buf;
         struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
-        printf("%d bytes from %s: icmp_seq=%u ttl=%u\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl);
+        if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid){
+            printf("%d bytes from %s: icmp_seq=%u ttl=%u\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl);
+        }
     }
     return (0);
 }
