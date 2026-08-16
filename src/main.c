@@ -81,7 +81,7 @@ int check_args(int ac, char **av, t_args *args){
 
 static void handleSignal( int signal ) {
     if (signal == 2){
-        printf("\nCtrl+c has been pressed, go terminate and print wht happens till now\n");
+        printf("--- HOSTNAME ping statistics ---\n");
         exit(1);
     }
 }
@@ -126,7 +126,6 @@ int main(int ac, char **av)
     // time_t start, end;
     struct timespec start, end;
 
-
     check_args(ac, av, &args);
     signal(SIGINT, handleSignal);
     int psocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -134,7 +133,13 @@ int main(int ac, char **av)
         printf("An error occured when initializing a socket\n");
         exit(1);
     }
-    while (1){
+    if (args.verbose == true){
+        printf("PING %s (%s): 64 data bytes, id 0x%x = %d \n", args.hostname, args.ip, pid, pid);
+    }else{
+        printf("PING %s (%s): 64 data bytes\n", args.hostname, args.ip);
+    }
+    while (1)
+    {
         sleep(1);
         create_msg(&msg, pid, seq);
         clock_gettime(CLOCK_MONOTONIC, &start);
@@ -143,21 +148,27 @@ int main(int ac, char **av)
             printf("A problem occured");
             exit(255);
         }
-        printf("%d bytes send\n", res);
+        // printf("%d bytes send\n", res);
         while (1){
             unsigned char buf[4096];
             struct sockaddr_in sender;
             socklen_t addr_len = sizeof(sender);
             int result = recvfrom(psocket, buf, sizeof(buf), 0, (struct sockaddr *)&sender, &addr_len);
             clock_gettime(CLOCK_MONOTONIC, &end);
-            long long time_ms =(end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+            float time_ms =(float)(end.tv_sec - start.tv_sec) * 1000 + (float)(end.tv_nsec - start.tv_nsec) / 1000000;
             struct iphdr *ip_header = (struct iphdr *)buf;
             struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
             if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == ICMP_ECHOREPLY){
                 seq = seq + 1;
-                printf("%d bytes from %s: icmp_seq=%u ttl=%u time:%lldms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
+                printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3fms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
                 break;
             }
+            // else if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == 3){
+            //     printf("One packet dropped because unreachable\n");
+            // }
+            // else{
+            //     printf("Packet received, code: %d, type: %d\n", icmp_header->code, icmp_header->type);
+            // }
         }
     }
     return (0);
