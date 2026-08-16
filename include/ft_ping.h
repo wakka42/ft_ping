@@ -18,6 +18,9 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <time.h>
+#include <poll.h>
+
+static bool g_stop = false;
 typedef struct s_args
 {
     bool    verbose;

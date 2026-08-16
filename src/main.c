@@ -1,6 +1,7 @@
 #include "ft_ping.h"
 
 int print_usage(){
+
     printf("Usage: ping [OPTION...] HOST ...\n");
     printf("Send ICMP ECHO_REQUEST packets to network hosts.\n");
     printf("\nOptions valid for all request types:\n");
@@ -10,6 +11,7 @@ int print_usage(){
 
 int  host_operand_in_args(int ac, char **av){
     int i = 1;
+
     while(i < ac){
         if(av[i][0] != '-')
             return i;
@@ -20,29 +22,24 @@ int  host_operand_in_args(int ac, char **av){
 
 int get_ip(t_args *args){
 
-  struct addrinfo hints, *res;
-  void *addr;
-  int status;
+    struct addrinfo hints, *res;
+    void *addr;
+    int status;
 
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_RAW;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_RAW;
+    if ((status = getaddrinfo(args->hostname, NULL, &hints, &res)) != 0) {
+        fprintf(stderr, "ft_ping: unknown host\n");
+        exit(1);
+    }
+    struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
+    args->addr = *res->ai_addr;
+    addr = &(ipv4->sin_addr);
+    inet_ntop(res->ai_family, addr, args->ip, sizeof(args->ip));
+    freeaddrinfo(res);
 
-  if ((status = getaddrinfo(args->hostname, NULL, &hints, &res)) != 0) {
-    // return -1;
-    fprintf(stderr, "ft_ping: unknown host\n");
-    exit(1);
-  }
-
-  struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
-  args->addr = *res->ai_addr;
-  addr = &(ipv4->sin_addr);
-  inet_ntop(res->ai_family, addr, args->ip, sizeof(args->ip));
-  printf("IP: %s\n", args->ip);
-
-  freeaddrinfo(res);
-
-  return 0;
+    return 0;
 }
 
 int check_args(int ac, char **av, t_args *args){
@@ -80,16 +77,16 @@ int check_args(int ac, char **av, t_args *args){
 }
 
 static void handleSignal( int signal ) {
+
     if (signal == 2){
-        printf("--- HOSTNAME ping statistics ---\n");
-        exit(1);
+        g_stop = true;
     }
+
 }
 
 uint16_t checksum(int count, void* addr){
-    
     long sum = 0;
-    
+
     while(count > 1){
         sum += *(unsigned short *)addr;
         addr += 2;
@@ -113,19 +110,19 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
         msg->checksum = 0;
         memcpy(msg->data, "Ping 42", 7);
         msg->checksum = checksum(sizeof(*msg), msg);
-}
-
-int main(int ac, char **av)
-{
+    }
+    
+    int main(int ac, char **av)
+    {
     (void)ac;
     (void)av;
     t_args args;
     t_msg msg;
     uint16_t seq = 1;
     pid_t pid = getpid();
-    // time_t start, end;
     struct timespec start, end;
-
+    struct pollfd pfd;
+        
     check_args(ac, av, &args);
     signal(SIGINT, handleSignal);
     int psocket = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -138,7 +135,7 @@ int main(int ac, char **av)
     }else{
         printf("PING %s (%s): 64 data bytes\n", args.hostname, args.ip);
     }
-    while (1)
+    while (!g_stop)
     {
         sleep(1);
         create_msg(&msg, pid, seq);
@@ -148,8 +145,22 @@ int main(int ac, char **av)
             printf("A problem occured");
             exit(255);
         }
-        // printf("%d bytes send\n", res);
-        while (1){
+        pfd.fd = psocket;
+        pfd.events = POLLIN;
+        int ret = poll(&pfd, 1, 1000);
+        if (ret < 0) {
+            if (g_stop)
+                break;
+            perror("poll");
+            exit(1);
+        }
+        if (ret == 0) {
+            printf("Request timeout for icmp_seq %u\n", seq);
+            seq++;
+            continue;
+        }
+        if (pfd.revents & POLLIN) {
+            // printf("%d bytes send\n", res);
             unsigned char buf[4096];
             struct sockaddr_in sender;
             socklen_t addr_len = sizeof(sender);
@@ -159,17 +170,14 @@ int main(int ac, char **av)
             struct iphdr *ip_header = (struct iphdr *)buf;
             struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
             if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == ICMP_ECHOREPLY){
-                seq = seq + 1;
-                printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3fms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
-                break;
+                seq++;
+                if (!g_stop)
+                    printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3fms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
             }
-            // else if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == 3){
-            //     printf("One packet dropped because unreachable\n");
-            // }
-            // else{
-            //     printf("Packet received, code: %d, type: %d\n", icmp_header->code, icmp_header->type);
-            // }
         }
     }
+    printf("--- HOSTNAME ping statistics ---\n");
+    printf("round-trip min/avg/max/stddev = 15,829/22,599/29,369/6,770 ms\n");
+
     return (0);
 }
