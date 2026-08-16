@@ -112,12 +112,31 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
         msg->checksum = checksum(sizeof(*msg), msg);
     }
     
+    void update_stats(t_stats *stats, float time){
+
+        stats->received++;
+        if (time < stats->min || stats->min == 0)
+            stats->min = time;
+        if (time > stats->max)
+            stats->max = time;
+        stats->sum += time;
+        stats->sum_squared += time * time;
+    }
+
+    void compute_stats(t_stats *stats){
+        stats->transmitted--;
+        float avg = stats->sum / stats->received;
+        stats->stddev = sqrtf(stats->sum_squared / stats->received - avg * avg);
+        stats->loss = (stats->transmitted - stats->received) * 100 / stats->transmitted;
+    }
+
     int main(int ac, char **av)
     {
     (void)ac;
     (void)av;
     t_args args;
     t_msg msg;
+    t_stats stats = {0};
     uint16_t seq = 1;
     pid_t pid = getpid();
     struct timespec start, end;
@@ -145,6 +164,7 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
             printf("A problem occured");
             exit(255);
         }
+        stats.transmitted++;
         pfd.fd = psocket;
         pfd.events = POLLIN;
         int ret = poll(&pfd, 1, 1000);
@@ -171,13 +191,17 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
             struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
             if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == ICMP_ECHOREPLY){
                 seq++;
-                if (!g_stop)
+                if (!g_stop){
+                    update_stats(&stats, time_ms);
                     printf("%d bytes from %s: icmp_seq=%u ttl=%u time=%.3fms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
+                }
             }
         }
     }
+    compute_stats(&stats);
     printf("--- HOSTNAME ping statistics ---\n");
-    printf("round-trip min/avg/max/stddev = 15,829/22,599/29,369/6,770 ms\n");
+    printf("%d packets transmitted, %d packets received, %.2f%% packet loss\n", stats.transmitted, stats.received, stats.loss);
+    printf("round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n", stats.min, stats.sum / stats.received, stats.max, stats.stddev);
 
     return (0);
 }

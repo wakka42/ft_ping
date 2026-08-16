@@ -19,6 +19,7 @@
 #include <netinet/ip_icmp.h>
 #include <time.h>
 #include <poll.h>
+#include <math.h>
 
 static bool g_stop = false;
 typedef struct s_args
@@ -38,3 +39,14 @@ typedef struct s_msg
     uint16_t sequence;
     char     data[56];
 } t_msg;
+typedef struct s_stats
+{
+    uint16_t transmitted;
+    uint16_t received;
+    float       min;
+    float       max;
+    float       sum;
+    float       sum_squared;
+    float       loss;
+    float       stddev;
+} t_stats;
