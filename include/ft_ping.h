@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <time.h>
 typedef struct s_args
 {
     bool    verbose;

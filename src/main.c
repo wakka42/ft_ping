@@ -123,6 +123,9 @@ int main(int ac, char **av)
     t_msg msg;
     uint16_t seq = 1;
     pid_t pid = getpid();
+    // time_t start, end;
+    struct timespec start, end;
+
 
     check_args(ac, av, &args);
     signal(SIGINT, handleSignal);
@@ -132,21 +135,29 @@ int main(int ac, char **av)
         exit(1);
     }
     while (1){
-        create_msg(&msg, pid, seq);
-        int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
-        if (res < 1)
-            printf("A proble occured");
-        seq = seq + 1;
-        printf("%d bytes send\n", res);
         sleep(1);
-        unsigned char buf[4096];
-        struct sockaddr_in sender;
-        socklen_t addr_len = sizeof(sender);
-        int result = recvfrom(psocket, buf, sizeof(buf), 0, (struct sockaddr *)&sender, &addr_len);
-        struct iphdr *ip_header = (struct iphdr *)buf;
-        struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
-        if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid){
-            printf("%d bytes from %s: icmp_seq=%u ttl=%u\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl);
+        create_msg(&msg, pid, seq);
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        int res = sendto(psocket, (void *)&msg, sizeof(msg), 0, &args.addr, 16);
+        if (res < 1){
+            printf("A problem occured");
+            exit(255);
+        }
+        printf("%d bytes send\n", res);
+        while (1){
+            unsigned char buf[4096];
+            struct sockaddr_in sender;
+            socklen_t addr_len = sizeof(sender);
+            int result = recvfrom(psocket, buf, sizeof(buf), 0, (struct sockaddr *)&sender, &addr_len);
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            long long time_ms =(end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
+            struct iphdr *ip_header = (struct iphdr *)buf;
+            struct icmphdr *icmp_header = (struct icmphdr *)(buf + ip_header->ihl * 4);
+            if (ntohs(icmp_header->un.echo.id) == (u_int16_t)pid && ntohs(icmp_header->un.echo.sequence) == seq && icmp_header->type == ICMP_ECHOREPLY){
+                seq = seq + 1;
+                printf("%d bytes from %s: icmp_seq=%u ttl=%u time:%lldms\n", result, args.ip, ntohs(icmp_header->un.echo.sequence), ip_header->ttl, time_ms);
+                break;
+            }
         }
     }
     return (0);
