@@ -124,10 +124,15 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
     }
 
     void compute_stats(t_stats *stats){
-        stats->transmitted--;
-        float avg = stats->sum / stats->received;
-        stats->stddev = sqrtf(stats->sum_squared / stats->received - avg * avg);
-        stats->loss = (stats->transmitted - stats->received) * 100 / stats->transmitted;
+        if (stats->received){
+            stats->transmitted--;
+            float avg = stats->sum / stats->received;
+            stats->stddev = sqrtf(stats->sum_squared / stats->received - avg * avg);
+            stats->loss = (stats->transmitted - stats->received) * 100 / stats->transmitted;
+        }
+        else{
+            stats->loss = 100.0;
+        }
     }
 
     int main(int ac, char **av)
@@ -175,7 +180,7 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
             exit(1);
         }
         if (ret == 0) {
-            printf("Request timeout for icmp_seq %u\n", seq);
+            // printf("Request timeout for icmp_seq %u\n", seq);
             seq++;
             continue;
         }
@@ -201,7 +206,8 @@ void create_msg(t_msg *msg, pid_t id, uint16_t seq){
     compute_stats(&stats);
     printf("--- HOSTNAME ping statistics ---\n");
     printf("%d packets transmitted, %d packets received, %.2f%% packet loss\n", stats.transmitted, stats.received, stats.loss);
-    printf("round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n", stats.min, stats.sum / stats.received, stats.max, stats.stddev);
+    if (stats.received != 0)
+        printf("round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n", stats.min, stats.sum / stats.received, stats.max, stats.stddev);
 
     return (0);
 }
